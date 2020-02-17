@@ -5,7 +5,7 @@ argc = len(sys.argv)
 if argc != 2 and argc != 3:
         print('Usage: python datediff.py <from date> [to date]')
         print('e.g. $ python datediff.py 19860213')
-        print('e.g. $ python datediff.py 20120101 2020021')
+        print('e.g. $ python datediff.py 20120101 20200217')
         exit()
 if argc == 2:
         to_ts = int(os.popen('date +%s').read())
