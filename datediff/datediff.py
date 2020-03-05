@@ -1,6 +1,5 @@
-#!/usr/bin/python
-import os
 import sys
+from datetime import datetime, timedelta
 
 argc = len(sys.argv)
 if argc != 2 and argc != 3:
@@ -9,9 +8,8 @@ if argc != 2 and argc != 3:
         print('e.g. $ python datediff.py 20120101 20200217')
         exit()
 if argc == 2:
-        to_ts = int(os.popen('date +%s').read())
+        to_date = datetime.now()
 elif argc == 3:
-        to_ts = int(os.popen('date -d"' + sys.argv[2] + '" +%s').read())
-from_ts = int(os.popen('date -d"' + sys.argv[1] + '" +%s').read())
-diff = (to_ts - from_ts) // (3600 * 24)
-print(diff)
+        to_date = datetime.strptime(sys.argv[2], '%Y%m%d')
+from_date = datetime.strptime(sys.argv[1], '%Y%m%d')
+print((to_date - from_date).days)
