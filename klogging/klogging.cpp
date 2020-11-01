@@ -1,10 +1,15 @@
-#include "KLogging.h"
+#include "klogging.h"
 #include <time.h>
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <pthread.h>
 // #include <cutils/log.h>
+
+const char *_cpp_klogging_version()
+{
+	return VERSION;
+}
 
 KLogging::KLogging()
 	: m_file(NULL), m_options(0), m_level(KLOGGING_LEVEL_OFF)
@@ -127,7 +132,7 @@ void KLogging::Print(char type, const char *file, int line, const char *function
 	} else {
 		gettimeofday(&tv, NULL);
 		strftime(timestr, sizeof(timestr), "%m-%d %H:%M:%S", localtime(&tv.tv_sec));
-		sprintf(timestr + 14, ".%03d ", tv.tv_usec / 1000);
+		sprintf(timestr + 14, ".%03ld ", tv.tv_usec / 1000);
 	}
 
 	if (m_file) {
@@ -167,6 +172,11 @@ void KLogging::Print(char type, const char *file, int line, const char *function
 
 KLogging _klogging;
 
+
+extern "C" const char *_klogging_version()
+{
+	return VERSION;
+}
 
 extern "C" int _klogging_set_file(const char *filename)
 {

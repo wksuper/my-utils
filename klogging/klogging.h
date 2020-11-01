@@ -29,6 +29,9 @@ enum KLoggingLevel {
 };
 
 #ifdef __cplusplus
+
+const char *_cpp_klogging_version();
+
 // CPP APIs
 class KLogging {
 public:
@@ -71,6 +74,7 @@ static inline int KLOG_SET_FILE(const char *filename) { return _klogging.SetFile
 static inline void KLOG_SET_OPTIONS(KLoggingOptions options) { _klogging.SetOptions(options); }
 static inline KLoggingOptions KLOG_GET_OPTIONS() { return _klogging.GetOptions(); }
 static inline void KLOG_SET_LEVEL(enum KLoggingLevel level) { _klogging.SetLevel(level); }
+#define KVERSION()        _cpp_klogging_version()
 #define KCONSOLE(args...) _klogging.c(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
 #define KLOGE(args...)    _klogging.e(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
 #define KLOGW(args...)    _klogging.w(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
@@ -81,6 +85,7 @@ static inline void KLOG_SET_LEVEL(enum KLoggingLevel level) { _klogging.SetLevel
 #else
 
 /* C APIs */
+const char *_klogging_version();
 int _klogging_set_file(const char *filename);
 void _klogging_set_options(KLoggingOptions options);
 KLoggingOptions _klogging_get_options();
@@ -96,6 +101,7 @@ static inline int KLOG_SET_FILE(const char *filename) { return _klogging_set_fil
 static inline void KLOG_SET_OPTIONS(KLoggingOptions options) { _klogging_set_options(options); }
 static inline KLoggingOptions KLOG_GET_OPTIONS() { return _klogging_get_options(); }
 static inline void KLOG_SET_LEVEL(enum KLoggingLevel level) { _klogging_set_level(level); }
+#define KVERSION()        _klogging_version()
 #define KCONSOLE(args...) _klogging_c(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
 #define KLOGE(args...)    _klogging_e(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
 #define KLOGW(args...)    _klogging_w(__FILE__, __LINE__, __FUNCTION__, LOG_TAG, ##args)
