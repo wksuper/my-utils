@@ -23,7 +23,7 @@ $(LIB_TARGET): $(LIB_OBJECTS)
 	gcc -shared $^ -o $@
 
 epcm.o: epcm.c $(HEADER)
-	gcc -fPIC -DVERSION=\"$(VERSION)\" -c $<
+	gcc -fPIC -O2 -DVERSION=\"$(VERSION)\" -c $<
 
 $(BIN_TARGET): $(BIN_OBJECTS) $(LIB_TARGET)
 	gcc $^ -lklogging -lpthread -ltinyalsa -ldl $(LIB_TARGET) -o $@

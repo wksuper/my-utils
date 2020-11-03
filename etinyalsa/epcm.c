@@ -18,14 +18,21 @@ struct epcm {
 	int stop;
 };
 
-struct pcm* epcm_base(struct epcm *epcm)
+struct pcm *epcm_base(struct epcm *epcm)
 {
 	return epcm->pcm;
 }
 
+static size_t ram_get_read_available(struct epcm *epcm)
+{
+	return (epcm->w_pos >= epcm->r_pos)
+	       ? (epcm->w_pos - epcm->r_pos)
+	       : (epcm->ram_size - epcm->r_pos + epcm->w_pos);
+}
+
 static void *pcm_streaming_thread(void *data)
 {
-	KLOGV("%s() enter\n", __FUNCTION__);
+	KLOGD("%s() enter\n", __FUNCTION__);
 
 	struct epcm *epcm = (struct epcm *)data;
 	const size_t tmp_size = pcm_frames_to_bytes(epcm->pcm, pcm_get_buffer_size(epcm->pcm));
@@ -55,12 +62,15 @@ static void *pcm_streaming_thread(void *data)
 
 		pthread_mutex_lock(&epcm->mutex_for_w_pos);
 		epcm->w_pos = w;
+		size_t read_available = ram_get_read_available(epcm);
+		KLOGV("write  to queue: %u bytes, queue status: [%10u / %10u] %3u%%\n",
+		      tmp_size, read_available, epcm->ram_size, read_available * 100 / epcm->ram_size);
 		pthread_cond_signal(&epcm->cond);
 		pthread_mutex_unlock(&epcm->mutex_for_w_pos);
 	}
 
 	free(tmp);
-	KLOGV("%s() leave\n", __FUNCTION__);
+	KLOGD("%s() leave\n", __FUNCTION__);
 	return NULL;
 }
 
@@ -70,15 +80,24 @@ struct epcm *epcm_open(unsigned int card,
                        const struct pcm_config *config,
                        const struct epcm_config *econfig)
 {
-	struct epcm *epcm = (struct epcm *)malloc(sizeof(struct epcm));
+	KLOGD("%s() enter\n", __FUNCTION__);
 
-	if (!epcm) {
+	struct epcm *epcm = (struct epcm *)calloc(1, sizeof(struct epcm));
+	if (!epcm)
 		goto error;
-	}
 
 	epcm->pcm = pcm_open(card, device, flags, config);
 	if (!epcm->pcm)
 		goto error;
+
+	if (!epcm->pcm) {
+		KLOGE("Unable to open PCM device\n");
+		goto error;
+	}
+	if (!pcm_is_ready(epcm->pcm)) {
+		KLOGE("Unable to open PCM device (%s)\n", pcm_get_error(epcm->pcm));
+		goto error;
+	}
 
 	if (econfig->ram_millisec) {
 		epcm->ram_size = pcm_frames_to_bytes(epcm->pcm,
@@ -105,35 +124,22 @@ struct epcm *epcm_open(unsigned int card,
 		epcm->ram_size = 0;
 	}
 
+	KLOGD("%s() leave\n", __FUNCTION__);
 	return epcm;
 
 error:
-	if (epcm) {
-		if (epcm->pcm) {
-			pcm_close(epcm->pcm);
-
-			if (epcm->ram)
-				free(epcm->ram);
-
-			free(epcm);
-		}
-	}
+	epcm_close(epcm);
+	KLOGD("%s() leave\n", __FUNCTION__);
 	return NULL;
-}
-
-static size_t ram_get_read_available(struct epcm *epcm)
-{
-	return (epcm->w_pos >= epcm->r_pos)
-	       ? (epcm->w_pos - epcm->r_pos)
-	       : (epcm->ram_size - epcm->r_pos + epcm->w_pos);
 }
 
 static int read_from_queue(struct epcm *epcm, void *data, unsigned int count)
 {
 	char *dest = (char *)data;
-	while (count) {
-		size_t read_available = 0;
+	const size_t requested_bytes = count;
+	size_t read_available = 0;
 
+	while (count) {
 		pthread_mutex_lock(&epcm->mutex_for_w_pos);
 		while ((read_available = ram_get_read_available(epcm)) == 0) {
 			pthread_cond_wait(&epcm->cond, &epcm->mutex_for_w_pos);
@@ -158,7 +164,11 @@ static int read_from_queue(struct epcm *epcm, void *data, unsigned int count)
 		}
 		count -= actual_read;
 	}
-	return 0;
+	const size_t total_read = dest - (char *)data;
+	read_available = ram_get_read_available(epcm);
+	KLOGV("read from queue: %u bytes, queue status: [%10u / %10u] %3u%%\n",
+	      total_read, read_available, epcm->ram_size, read_available * 100 / epcm->ram_size);
+	return (total_read == requested_bytes) ? 0 : -1;
 }
 
 int epcm_read(struct epcm *epcm, void *data, unsigned int count)
@@ -170,7 +180,7 @@ int epcm_read(struct epcm *epcm, void *data, unsigned int count)
 
 int epcm_close(struct epcm *epcm)
 {
-	KLOGD("+%s()+\n", __FUNCTION__);
+	KLOGD("%s() enter\n", __FUNCTION__);
 	if (epcm) {
 		if (epcm->ram_size) {
 			epcm->stop = 1;
@@ -183,16 +193,21 @@ int epcm_close(struct epcm *epcm)
 			pthread_cond_destroy(&epcm->cond);
 			pthread_mutex_destroy(&epcm->mutex_for_w_pos);
 			free(epcm->ram);
+			epcm->ram = NULL;
+			epcm->ram_size = 0;
 		} else {
 			/* bypass mode */
 		}
 
-		if (epcm->pcm)
+		if (epcm->pcm) {
 			pcm_close(epcm->pcm);
+			epcm->pcm = NULL;
+		}
 
 		free(epcm);
+		epcm = NULL;
 	}
-	KLOGD("-%s()-\n", __FUNCTION__);
+	KLOGD("%s() leave\n", __FUNCTION__);
 
 	return 0;
 }
