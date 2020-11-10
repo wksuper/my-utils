@@ -1,0 +1,10 @@
+style=linux
+indent=tab=8
+align-pointer=name
+align-reference=name
+indent-col1-comments
+attach-closing-while
+pad-oper
+pad-comma
+pad-header
+unpad-paren
